@@ -2,16 +2,54 @@ package wallet
 
 import (
 	"errors"
-	"github.com/olim007/wallet/pkg/types"
-	"github.com/google/uuid"
-)
+	"sync"
 
+	"github.com/google/uuid"
+	"github.com/olim007/wallet/pkg/types"
+)
 
 // func (s *Service) Service(nextAccountID int64, accounts []*types.Account, payments []*types.Payment) {
 // 	s.accounts = accounts
 // 	s.payments = payments
 // 	s.nextAccountID = nextAccountID
 // }
+
+func pn(a, b int, payments []*types.Payment, result *int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	mu := sync.Mutex{}
+	val := 0
+	for i := a; i < b; i++ {
+		val += int(payments[i].Amount)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	*result += val
+}
+
+func (s *Service) SumPayments(goroutines int) types.Money {
+	payments := s.payments
+	l := len(payments)
+	step := l / goroutines
+	var wg sync.WaitGroup
+	result := 0
+	a := 0
+	b := step
+	f := false
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		if step < i {
+			f = true
+			a = step
+			step *= 2
+			b = step
+		}
+		if step >= i && f {
+			f = false
+			go pn(a, b, s.payments, &result, &wg)
+		}
+	}
+}
 
 func (s *Service) FavoritePayment(paymentID string, name string) (*types.Favorite, error) {
 	payment := &types.Payment{}

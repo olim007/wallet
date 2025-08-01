@@ -25,5 +25,4 @@ func main() {
 	payment, err := svc.PayFromFavorite(uuid.New().String())
 	id := payment.ID
 	fmt.Print(id)
-	panic()
 }
